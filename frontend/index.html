@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>마니또 매칭</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f7f8fb; color: #1f2933; }
+    header { background: #111827; color: #fff; padding: 16px 20px; }
+    main { max-width: 1100px; margin: 24px auto; padding: 0 16px 32px; }
+    h1 { margin: 0; font-size: 22px; }
+    h2 { margin: 24px 0 12px; font-size: 18px; }
+    section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-top: 16px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+    label { display: block; font-weight: 600; margin: 12px 0 6px; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+    textarea { min-height: 140px; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    button { background: #2563eb; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; margin-right: 8px; }
+    button.secondary { background: #6b7280; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .row > div { flex: 1; min-width: 260px; }
+    .status { margin-top: 10px; font-size: 14px; }
+    pre { background: #0b1021; color: #e5e7eb; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+    .tag { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: 12px; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <header style="background: linear-gradient(120deg, #111827 0%, #1f2a44 100%);">
+    <h1 style="font-size: 24px;">내 마니띠 조회 서비스</h1>
+    <div style="font-size: 13px; margin-top: 6px; color: #cbd5e1;">
+      이름과 생년월일(YYMMDD)만 입력하면 오늘의 마니띠가 공개됩니다.
+    </div>
+  </header>
+  <main>
+    <div id="app"></div>
+  </main>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script>
+    const { useState } = React;
+
+    const endpoint = (path) => path;
+
+    async function postJSON(url, body) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "요청 실패");
+      }
+      return data;
+    }
+
+    async function getJSON(url) {
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "요청 실패");
+      }
+      return data;
+    }
+
+    function LookupPanel() {
+      const [name, setName] = useState("");
+      const [birthdate, setBirthdate] = useState("");
+      const [result, setResult] = useState(null);
+      const [status, setStatus] = useState("");
+      const [loading, setLoading] = useState(false);
+
+      const handleLookup = async () => {
+        setLoading(true);
+        setStatus("조회 중...");
+        setResult(null);
+        try {
+          const r = await postJSON(endpoint("/api/lookup"), { name, birthdate });
+          setResult(r);
+          setStatus("조회 성공");
+        } catch (err) {
+          setStatus(`오류: ${err.message}`);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        React.createElement("section", { style: { borderColor: "#dbeafe" } },
+          React.createElement("div", { className: "tag", style: { background: "#dbeafe", color: "#1d4ed8" } }, "마니또 조회"),
+          React.createElement("h2", { style: { marginTop: "8px" } }, "내 마니띠를 확인하세요"),
+          React.createElement("div", { style: { color: "#6b7280", fontSize: "14px", marginBottom: "8px" } },
+            "이름과 생년월일(YYMMDD)을 입력하면 당신의 마니띠가 공개됩니다."
+          ),
+          React.createElement("label", null, "본인 이름"),
+          React.createElement("input", {
+            type: "text",
+            placeholder: "예: 홍길동",
+            value: name,
+            onChange: (e) => setName(e.target.value),
+          }),
+          React.createElement("label", null, "생년월일 (YYMMDD)"),
+          React.createElement("input", {
+            type: "text",
+            placeholder: "예: 900101",
+            value: birthdate,
+            onChange: (e) => setBirthdate(e.target.value),
+          }),
+          React.createElement("div", { style: { marginTop: "12px" } },
+            React.createElement("button", { onClick: handleLookup, disabled: loading || !name.trim() || !birthdate.trim() }, "마니띠 조회하기")
+          ),
+          React.createElement("div", { className: "status", style: { color: "#2563eb", fontWeight: 600 } }, status),
+          result && React.createElement("div", null,
+            React.createElement("label", { style: { marginTop: "16px", display: "block", fontWeight: 700 } }, "당신의 마니띠 안내"),
+            React.createElement("div", {
+              style: {
+                background: "#ecfdf3",
+                color: "#065f46",
+                padding: "14px",
+                borderRadius: "10px",
+                border: "1px solid #bbf7d0",
+                whiteSpace: "pre-wrap",
+                lineHeight: "1.6",
+                fontSize: "14px",
+                boxShadow: "0 8px 24px rgba(16,185,129,0.15)"
+              }
+            }, result.message || "메시지를 불러올 수 없습니다.")
+          )
+        )
+      );
+    }
+
+    function App() {
+      return (
+        React.createElement(React.Fragment, null, React.createElement(LookupPanel, null))
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("app"));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>
+

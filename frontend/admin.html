@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>마니또 매칭 (관리자)</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f7f8fb; color: #1f2933; }
+    header { background: #111827; color: #fff; padding: 16px 20px; }
+    main { max-width: 1100px; margin: 24px auto; padding: 0 16px 32px; }
+    h1 { margin: 0; font-size: 22px; }
+    h2 { margin: 24px 0 12px; font-size: 18px; }
+    section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-top: 16px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+    label { display: block; font-weight: 600; margin: 12px 0 6px; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+    textarea { min-height: 140px; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    button { background: #2563eb; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; margin-right: 8px; }
+    button.secondary { background: #6b7280; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .row > div { flex: 1; min-width: 260px; }
+    .status { margin-top: 10px; font-size: 14px; }
+    pre { background: #0b1021; color: #e5e7eb; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+    .tag { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: 12px; margin-right: 6px; }
+    .link { font-size: 13px; color: #bfdbfe; text-decoration: none; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>마니또 매칭 (관리자)</h1>
+    <div style="font-size: 13px; margin-top: 4px; color: #cbd5e1;">
+      업로드/매칭/결과 확인 · 직원용 페이지: <a class="link" href="/" aria-label="직원용 페이지">/</a>
+    </div>
+  </header>
+  <main>
+    <div id="app"></div>
+  </main>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script>
+    // React 로딩 실패 시 기본 안내 표시
+    (function fallbackIfReactMissing() {
+      if (window.React && window.ReactDOM && ReactDOM.createRoot) return;
+      const el = document.getElementById("app");
+      if (!el) return;
+      el.innerHTML = `
+        <section style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#fff;">
+          <h2 style="margin:0 0 12px 0;">관리자 페이지를 불러올 수 없습니다.</h2>
+          <div style="color:#6b7280;font-size:14px;line-height:1.6;">
+            네트워크에서 CDN(react/ react-dom) 차단 여부를 확인하거나 Ctrl+F5로 새로고침해 주세요.
+            계속 문제가 있으면 콘솔 오류 메시지를 공유해 주세요.
+          </div>
+        </section>
+      `;
+    })();
+
+    if (!(window.React && window.ReactDOM && ReactDOM.createRoot)) {
+      // React가 로드되지 않았으므로 이후 코드를 실행하지 않습니다.
+      throw new Error("React not loaded");
+    }
+
+    const { useState } = React;
+
+    const endpoint = (path) => path;
+
+    async function postJSON(url, body) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "요청 실패");
+      }
+      return data;
+    }
+
+    async function getJSON(url) {
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "요청 실패");
+      }
+      return data;
+    }
+
+    function AdminPanel() {
+      const [payload, setPayload] = useState("");
+      const [seed, setSeed] = useState("");
+      const [status, setStatus] = useState("");
+      const [results, setResults] = useState([]);
+      const [loading, setLoading] = useState(false);
+
+      const exampleJson = `[
+  {"table":1,"name":"홍대의","email":"hong@mondrian.ai","birthdate":"821122"},
+  {"table":1,"name":"신혜림","email":"hyelimsin29@gmail.com","birthdate":"020830"}
+]`;
+
+      const handleUpload = async () => {
+        setLoading(true);
+        setStatus("업로드 중...");
+        try {
+          const data = JSON.parse(payload);
+          const res = await postJSON(endpoint("/api/admin/upload"), data);
+          setStatus(\`업로드 완료 (\${res.count}명)\`);
+          setResults([]);
+        } catch (err) {
+          setStatus(\`오류: \${err.message}\`);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleMatch = async () => {
+        setLoading(true);
+        setStatus("매칭 중...");
+        try {
+          const res = await postJSON(endpoint("/api/admin/match"), seed ? { seed } : {});
+          setStatus(\`매칭 완료 (\${res.count}건)\`);
+          const r = await getJSON(endpoint("/api/admin/results"));
+          setResults(r);
+        } catch (err) {
+          setStatus(\`오류: \${err.message}\`);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleFetch = async () => {
+        setLoading(true);
+        setStatus("결과 불러오는 중...");
+        try {
+          const r = await getJSON(endpoint("/api/admin/results"));
+          setResults(r);
+          setStatus(\`총 \${r.length}건\`);
+        } catch (err) {
+          setStatus(\`오류: \${err.message}\`);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        React.createElement("section", null,
+          React.createElement("div", { className: "tag" }, "관리자"),
+          React.createElement("h2", null, "데이터 업로드 & 매칭"),
+          React.createElement("div", { className: "row" },
+            React.createElement("div", null,
+              React.createElement("label", null, "참가자 JSON"),
+              React.createElement("textarea", {
+                placeholder: "배열 형태 JSON 붙여넣기",
+                value: payload,
+                onChange: (e) => setPayload(e.target.value),
+              }),
+              React.createElement("div", { style: { fontSize: "12px", marginTop: "6px", color: "#6b7280" } },
+                "필드: table, name, email, birthdate(YYMMDD) / 예시: ",
+                React.createElement("code", null, "[{table:1,name:'홍길동',email:'test@example.com',birthdate:'900101'}...]")
+              ),
+              React.createElement("button", { onClick: () => setPayload(exampleJson) }, "예시 채우기"),
+              React.createElement("button", { onClick: handleUpload, disabled: loading || !payload.trim() }, "업로드")
+            ),
+            React.createElement("div", null,
+              React.createElement("label", null, "랜덤 seed (선택)"),
+              React.createElement("input", {
+                type: "text",
+                placeholder: "숫자 입력 시 매칭 재현 가능",
+                value: seed,
+                onChange: (e) => setSeed(e.target.value),
+              }),
+              React.createElement("div", { style: { marginTop: "12px" } },
+                React.createElement("button", { onClick: handleMatch, disabled: loading }, "매칭 실행"),
+                React.createElement("button", { className: "secondary", onClick: handleFetch, disabled: loading }, "결과 새로고침")
+              )
+            )
+          ),
+          React.createElement("div", { className: "status" }, status),
+          results.length > 0 && React.createElement("div", null,
+            React.createElement("label", { style: { marginTop: "16px" } }, "매칭 결과"),
+            React.createElement("pre", null, JSON.stringify(results, null, 2))
+          )
+        )
+      );
+    }
+
+    function App() {
+      return React.createElement(AdminPanel, null);
+    }
+
+    const appEl = document.getElementById("app");
+    if (appEl) {
+      const root = ReactDOM.createRoot(appEl);
+      root.render(React.createElement(App));
+    }
+  </script>
+</body>
+</html>
+
